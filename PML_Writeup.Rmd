@@ -1,0 +1,86 @@
+---
+title: "Practical Machine Learning Writeup"
+sub-title: "Human Activity Monitoring"
+author: "Misal6"
+date: "Sunday, Feb 21, 2015"
+---
+# Executive Summary
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.  
+
+The goal of this writeup is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants who were asked to perform barbell lifts correctly and incorrectly in 5 different ways, build a Machine learning prediction model to predict the outcome trained using the training data set.  
+
+Among the many different methods/algorithms that could be used to build the model, I have selected Randomforest model because of its accuracy of prediction and low OOB error.
+
+### Libraries
+Loading required libraries.
+```{r}
+suppressMessages(library(caret))
+suppressMessages(library(kernlab))
+suppressMessages(library(knitr))
+suppressMessages(library(randomForest))
+```
+
+
+### Data Loading and tidying
+
+```{r cache=TRUE}
+train_ds <- read.csv("pml-training.csv", na.strings = c("NA", "", " "))
+test_ds <- read.csv("pml-testing.csv", na.strings = c("NA", "", " "))
+train_ds <- train_ds[8:length(train_ds)]
+NZV <- nearZeroVar(train_ds)
+train_ds <- train_ds[, -NZV]
+NAS <- apply(train_ds, 2, function(x) {sum(is.na(x))})
+train_ds <- train_ds[, which(NAS == 0)]
+```
+
+### Creating a model
+Splitting the data in training and validation groups.
+
+```{r cache=TRUE}
+part <- createDataPartition(y = train_ds$classe, p = 0.7, list = FALSE)
+train_part <- train_ds[part, ]  
+test_part <- train_ds[-part, ]  
+dim(train_part)
+dim(test_part)
+```
+
+Out of the many prediction models that could be built for this excersise purpose, RandomForest resulted in the best model based on accuracy.(The limitation on text does not permit evaluation of other models in this writeup)
+
+```{r cache=TRUE}
+model <- train(train_part$classe ~ ., data = train_part,
+               method='rf',TuneLength=3,
+               trControl=trainControl(
+                 method='cv',number=10,
+                 classProbs = TRUE))
+print(model)
+```
+
+### Accuracy  
+
+```{r cache=TRUE}
+result <- model$results
+Acc <- (round(max(result$Accuracy), 4) * 100); print(Acc)
+Oob <- (round(1-max(result$Accuracy), 4) * 100); print(Oob)
+```
+
+This randomForest model has a 99.24% prediction accuracy (and 0.76% out-of-box error) which is a measure of a very strong prediction model.
+
+### Cross-validation  
+
+Using this model to predict the set aside data set for testing and cross-validation:
+
+```{r cache=TRUE}
+crossval <- predict(model, test_part) 
+print(table(crossval, test_part$classe))
+```
+
+### Prediction  
+
+Predicting the 20 observations in test data set to validate the model (and submit for 20% of course grades.)
+
+```{r cache=TRUE}
+problemid <- predict(model,test_ds)
+print(problemid)
+```
+
+### End of Writeup.  
